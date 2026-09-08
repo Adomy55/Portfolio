@@ -1,0 +1,482 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root{
+  --navy:#0a1e3f;
+  --navy-deep:#061229;
+  --cyan:#4fd1e8;
+  --amber:#e8a23d;
+  --brick:#e0533d;
+  --paper:#f0ece0;
+  --line: rgba(79,209,232,0.35);
+  --pixel-font:'Press Start 2P', monospace;
+  --body-font:'IBM Plex Sans', sans-serif;
+  --mono-font:'IBM Plex Mono', monospace;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--navy-deep);
+  background-image:
+    repeating-linear-gradient(0deg, var(--line) 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 32px);
+  color:var(--paper);
+  font-family:var(--body-font);
+  min-height:100vh;
+}
+
+::selection{background:var(--amber); color:var(--navy-deep);}
+
+a{color:inherit;}
+
+button{font-family:var(--body-font);}
+
+/* focus visibility */
+a:focus-visible, button:focus-visible, .door:focus-visible{
+  outline:2px solid var(--amber);
+  outline-offset:3px;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+}
+
+/* ---------- top chrome shared across pages ---------- */
+.site-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:18px 28px;
+  font-family:var(--pixel-font);
+  font-size:10px;
+  letter-spacing:0.5px;
+  color:var(--cyan);
+}
+.site-header .crumb{opacity:0.75;}
+.site-header .crumb a{text-decoration:none; color:var(--amber);}
+.site-header .crumb a:hover{text-decoration:underline;}
+
+/* ---------- LANDING / OFFICE SCENE ---------- */
+.scene{
+  max-width:920px;
+  margin:0 auto;
+  padding:10px 24px 60px;
+}
+.scene-title{
+  text-align:center;
+  font-family:var(--pixel-font);
+  font-size:22px;
+  color:var(--paper);
+  margin:10px 0 4px;
+  line-height:1.6;
+}
+.scene-tagline{
+  text-align:center;
+  font-family:var(--mono-font);
+  color:var(--cyan);
+  font-size:13px;
+  margin:0 0 18px;
+  opacity:0.85;
+}
+
+.instructions{
+  text-align:center;
+  font-family:var(--mono-font);
+  font-size:11.5px;
+  color:var(--amber);
+  background:rgba(232,162,61,0.08);
+  border:1px dashed var(--amber);
+  border-radius:4px;
+  padding:8px 14px;
+  max-width:520px;
+  margin:0 auto 20px;
+  line-height:1.6;
+}
+.instructions kbd{
+  background:var(--navy-deep);
+  border:1px solid var(--amber);
+  border-radius:3px;
+  padding:1px 6px;
+  font-family:var(--mono-font);
+}
+
+/* the platform-game stage: fixed play field, two platforms + a staircase, doors sit on the platforms */
+.stage{
+  position:relative;
+  width:100%;
+  max-width:880px;
+  height:460px;
+  margin:0 auto;
+  border:2px solid var(--cyan);
+  background-color:rgba(10,30,63,0.55);
+  background-image:url('assets/wallpaper.png');
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+  overflow:hidden;
+}
+.stage::before{
+  content:'';
+  position:absolute;
+  top:-2px; left:-2px; right:-2px; bottom:-2px;
+  border:1px dashed rgba(79,209,232,0.4);
+  pointer-events:none;
+}
+
+.floor-label{
+  position:absolute;
+  font-family:var(--mono-font);
+  font-size:10px;
+  color:var(--cyan);
+  opacity:0.7;
+  z-index:2;
+}
+
+.platform{
+  position:absolute;
+  left:0;
+  width:100%;
+  height:28px;
+  background-image: url('assets/floor.png'), repeating-linear-gradient(90deg, var(--amber) 0 14px, var(--navy) 14px 28px);
+  background-repeat: repeat-x, repeat;
+  background-size: auto 100%, auto 100%;
+}
+.platform-upper{ top:150px; }
+.platform-lower{ top:410px; }
+
+.doors-row{
+  position:absolute;
+  display:flex;
+  gap:56px;
+  align-items:flex-end;
+}
+.doors-row.upper-doors{ top:40px; left:170px; }
+.doors-row.lower-doors{ top:300px; right:60px; }
+
+/* staircase silhouette connecting the two platforms, on the left side.
+   The CSS-drawn steps below are the fallback; if assets/stairs.png loads,
+   a script in index.html overlays it and hides these steps automatically. */
+.staircase{
+  position:absolute;
+  left:20px;
+  top:150px;
+  width:120px;
+  height:260px;
+}
+.stair-step{
+  position:absolute;
+  height:12px;
+  background:var(--navy);
+  border-top:2px solid var(--cyan);
+}
+
+/* movable character (rectangle placeholder — swap for a sprite image later) */
+.player{
+  position:absolute;
+  width:22px;
+  height:34px;
+  background:var(--brick);
+  border:2px solid var(--paper);
+  border-radius:2px;
+  z-index:3;
+  image-rendering:pixelated;
+}
+
+/* inserted by script only if the file actually loads — see index.html */
+.stairs-img-overlay{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:fill;
+  z-index:1;
+}
+.desk-img-overlay{
+  position:absolute;
+  pointer-events:none;
+  z-index:2;
+  image-rendering:pixelated;
+}
+
+.door-unit{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-decoration:none;
+  color:inherit;
+  cursor:pointer;
+  background:none;
+  border:none;
+  padding:0;
+}
+
+.door{
+  width:70px;
+  height:110px;
+  background-image: url('assets/door.png'), linear-gradient(180deg, #12335e, #0a1e3f);
+  background-size: cover, cover;
+  background-position: center, center;
+  border:3px solid var(--amber);
+  border-radius:4px 4px 0 0;
+  position:relative;
+  transition:box-shadow 0.15s ease;
+}
+.door::after{ /* handle — only shows over the CSS-drawn fallback door art */
+  content:'';
+  position:absolute;
+  right:8px; top:52%;
+  width:6px; height:6px;
+  border-radius:50%;
+  background:var(--amber);
+}
+.door-unit:hover .door, .door-unit:focus-visible .door{
+  box-shadow:0 0 12px var(--amber);
+}
+.door-unit.opening .door{
+  animation:swing 0.5s ease forwards;
+}
+@keyframes swing{
+  to{ transform:perspective(300px) rotateY(-58deg); box-shadow:0 0 20px var(--amber);}
+}
+
+.door-plaque{
+  margin-top:12px;
+  font-family:var(--pixel-font);
+  font-size:9px;
+  letter-spacing:0.5px;
+  text-align:center;
+  color:var(--paper);
+  max-width:110px;
+  line-height:1.7;
+}
+.door-plaque .sub{
+  display:block;
+  font-family:var(--mono-font);
+  font-size:10px;
+  color:var(--cyan);
+  margin-top:4px;
+  letter-spacing:0;
+}
+
+.ground-strip{
+  height:16px;
+  background:repeating-linear-gradient(90deg, var(--amber) 0 14px, var(--navy) 14px 28px);
+  opacity:0.6;
+}
+
+.scene-footer{
+  text-align:center;
+  margin-top:26px;
+  font-family:var(--mono-font);
+  font-size:11px;
+  color:var(--cyan);
+  opacity:0.6;
+}
+
+/* ---------- HALLWAY ---------- */
+.hallway{
+  max-width:1000px;
+  margin:0 auto;
+  padding:20px 24px 70px;
+}
+.hallway-title{
+  font-family:var(--pixel-font);
+  font-size:16px;
+  margin:6px 0 30px;
+  text-align:center;
+}
+.hallway-strip{
+  border-top:2px solid var(--cyan);
+  border-bottom:2px solid var(--cyan);
+  padding:34px 10px;
+  display:flex;
+  gap:40px;
+  overflow-x:auto;
+  scroll-snap-type:x proximity;
+}
+.hallway-strip::-webkit-scrollbar{height:8px;}
+.hallway-strip::-webkit-scrollbar-thumb{background:var(--cyan); border-radius:4px;}
+
+.project-door-unit{
+  flex:0 0 auto;
+  width:150px;
+  scroll-snap-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-decoration:none;
+  color:inherit;
+  background:none;
+  border:none;
+  cursor:pointer;
+}
+.project-thumb{
+  width:120px;
+  height:84px;
+  object-fit:cover;
+  border:2px solid var(--cyan);
+  border-radius:3px;
+  margin-bottom:10px;
+  background:var(--navy);
+}
+.project-door-unit .door{
+  width:64px; height:96px;
+}
+.project-door-unit:hover .door, .project-door-unit:focus-visible .door{
+  box-shadow:0 0 12px var(--amber);
+}
+.project-door-unit .door-plaque{margin-top:10px; font-size:8.5px;}
+
+.empty-hallway{
+  text-align:center;
+  font-family:var(--mono-font);
+  color:var(--cyan);
+  padding:60px 20px;
+}
+
+.exit-row{
+  display:flex;
+  justify-content:center;
+  margin-top:40px;
+}
+.exit-link{
+  font-family:var(--pixel-font);
+  font-size:10px;
+  color:var(--amber);
+  text-decoration:none;
+  border:2px solid var(--amber);
+  padding:12px 18px;
+  border-radius:3px;
+}
+.exit-link:hover{background:var(--amber); color:var(--navy-deep);}
+
+/* ---------- PROJECT PAGE ---------- */
+.project-page{
+  max-width:760px;
+  margin:0 auto;
+  padding:10px 24px 70px;
+}
+.project-hero{
+  width:100%;
+  max-height:420px;
+  object-fit:cover;
+  border:2px solid var(--cyan);
+  background:var(--navy);
+}
+.project-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin:18px 0 8px;
+  font-family:var(--mono-font);
+  font-size:12px;
+}
+.tag{
+  border:1px solid var(--cyan);
+  color:var(--cyan);
+  padding:3px 9px;
+  border-radius:20px;
+}
+.project-title{
+  font-family:var(--pixel-font);
+  font-size:18px;
+  line-height:1.6;
+  margin:14px 0 18px;
+}
+.project-desc{
+  font-size:15px;
+  line-height:1.7;
+  color:var(--paper);
+  max-width:70ch;
+}
+.pdf-door-row{
+  margin-top:34px;
+  display:flex;
+}
+
+/* ---------- ADMIN ---------- */
+.admin-wrap{
+  max-width:900px;
+  margin:0 auto;
+  padding:20px 24px 80px;
+}
+.admin-title{
+  font-family:var(--pixel-font);
+  font-size:16px;
+  margin-bottom:6px;
+}
+.admin-note{
+  font-family:var(--mono-font);
+  font-size:12px;
+  color:var(--cyan);
+  margin-bottom:26px;
+  line-height:1.6;
+}
+.panel{
+  border:1px solid var(--cyan);
+  background:rgba(10,30,63,0.5);
+  padding:18px 20px;
+  margin-bottom:24px;
+  border-radius:4px;
+}
+.panel h2{
+  font-family:var(--pixel-font);
+  font-size:12px;
+  margin:0 0 16px;
+  color:var(--amber);
+}
+.field-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-bottom:12px;
+}
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  flex:1 1 160px;
+}
+.field label{font-family:var(--mono-font); font-size:11px; color:var(--cyan);}
+.field input, .field select, .field textarea{
+  background:var(--navy-deep);
+  border:1px solid var(--line);
+  color:var(--paper);
+  padding:8px 9px;
+  border-radius:3px;
+  font-family:var(--body-font);
+  font-size:13px;
+}
+.field textarea{min-height:60px; resize:vertical;}
+
+.btn{
+  font-family:var(--mono-font);
+  font-size:12px;
+  background:transparent;
+  border:1px solid var(--amber);
+  color:var(--amber);
+  padding:9px 16px;
+  border-radius:3px;
+  cursor:pointer;
+}
+.btn:hover{background:var(--amber); color:var(--navy-deep);}
+.btn.danger{border-color:var(--brick); color:var(--brick);}
+.btn.danger:hover{background:var(--brick); color:var(--paper);}
+.btn.primary{border-color:var(--cyan); color:var(--cyan);}
+.btn.primary:hover{background:var(--cyan); color:var(--navy-deep);}
+
+.project-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:10px 0;
+  border-bottom:1px solid var(--line);
+}
+.project-row:last-child{border-bottom:none;}
+.project-row img{width:52px; height:38px; object-fit:cover; border:1px solid var(--cyan);}
+.project-row .info{flex:1;}
+.project-row .info strong{display:block; font-size:14px;}
+.project-row .info span{font-family:var(--mono-font); font-size:11px; color:var(--cyan);}
+.row-actions{display:flex; gap:8px;}
+
+.actions-bar{display:flex; gap:12px; flex-wrap:wrap; margin-top:8px;}

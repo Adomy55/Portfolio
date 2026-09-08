@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hallway — Portfolio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <span class="crumb"><a href="index.html">← office</a></span>
+  <span class="crumb"><a href="admin.html">admin →</a></span>
+</header>
+
+<main class="hallway">
+  <h1 class="hallway-title" id="hallwayTitle">Hallway</h1>
+  <div class="hallway-strip" id="strip"></div>
+  <div class="exit-row">
+    <a class="exit-link" href="index.html">EXIT — back to office</a>
+  </div>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(async function init(){
+  const catId = qs('cat');
+  const strip = document.getElementById('strip');
+  try{
+    const data = await loadData();
+    const cat = categoryById(data, catId);
+    document.getElementById('hallwayTitle').textContent = cat ? cat.fullLabel : 'Unknown wing';
+
+    const projects = projectsByCategory(data, catId);
+    if(!cat){
+      strip.outerHTML = '<p class="empty-hallway">This wing does not exist. <a href="index.html" style="color:var(--amber)">Back to the office</a>.</p>';
+      return;
+    }
+    if(projects.length === 0){
+      strip.outerHTML = '<p class="empty-hallway">No projects filed in this wing yet — check back soon.</p>';
+      return;
+    }
+
+    projects.forEach(p => {
+      const unit = document.createElement('button');
+      unit.className = 'project-door-unit';
+      unit.setAttribute('aria-label', 'Open project: ' + p.title);
+      unit.innerHTML = `
+        <img class="project-thumb" src="${p.image}" alt="${p.title}">
+        <div class="door" style="border-color:${cat.plaqueColor}"></div>
+        <span class="door-plaque">${p.title}<span class="sub">${p.year}</span></span>
+      `;
+      unit.addEventListener('click', () => {
+        goThroughDoor(unit, 'project.html?id=' + encodeURIComponent(p.id));
+      });
+      strip.appendChild(unit);
+    });
+
+  }catch(err){
+    strip.outerHTML = '<p class="empty-hallway" style="color:var(--brick)">Could not load data.json — ' + err.message + '</p>';
+  }
+})();
+</script>
+</body>
+</html>

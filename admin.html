@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Portfolio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <span class="crumb"><a href="index.html">← office</a></span>
+  <span>ADMIN</span>
+</header>
+
+<main class="admin-wrap">
+  <h1 class="admin-title">Back office</h1>
+  <p class="admin-note">
+    This is a static site — there's no live server database. Edit everything below,
+    then click <strong>Download data.js</strong> and replace the data.js file
+    wherever the site is hosted (or sitting next to index.html). That's the file every
+    page actually reads, and — unlike a plain data.json — it works even when you open
+    index.html by double-clicking it, with no local server needed.
+  </p>
+
+  <div class="panel">
+    <h2>Site settings</h2>
+    <div class="field-row">
+      <div class="field"><label>Site title</label><input id="cfgTitle"></div>
+      <div class="field"><label>Your name</label><input id="cfgName"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Tagline</label><input id="cfgTagline"></div>
+      <div class="field"><label>CV file / link (goes behind the reception door)</label><input id="cfgCv"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Categories (floor 2 doors)</h2>
+    <div id="categoryList"></div>
+    <div class="field-row" style="margin-top:14px;">
+      <div class="field"><label>id (e.g. "landscape")</label><input id="newCatId"></div>
+      <div class="field"><label>door label</label><input id="newCatLabel"></div>
+      <div class="field"><label>full name</label><input id="newCatFull"></div>
+      <div class="field"><label>door color</label><input id="newCatColor" type="color" value="#4fd1e8"></div>
+    </div>
+    <button class="btn primary" id="addCatBtn">+ add category</button>
+  </div>
+
+  <div class="panel">
+    <h2>Projects</h2>
+    <div id="projectList"></div>
+  </div>
+
+  <div class="panel">
+    <h2 id="formTitle">Add a project</h2>
+    <div class="field-row">
+      <div class="field"><label>Title (door plaque)</label><input id="pTitle"></div>
+      <div class="field"><label>Category</label><select id="pCategory"></select></div>
+      <div class="field"><label>Year</label><input id="pYear"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Tools (comma separated)</label><input id="pTools" placeholder="Revit, AutoCAD"></div>
+      <div class="field"><label>Image path or URL (shown above the door)</label><input id="pImage" placeholder="assets/my-image.jpg"></div>
+    </div>
+    <div class="field-row">
+      <div class="field" style="flex:1 1 100%;"><label>PDF file path or URL (opens when the project page's PDF door is clicked — leave blank for none)</label><input id="pPdf" placeholder="assets/my-project.pdf"></div>
+    </div>
+    <div class="field-row">
+      <div class="field" style="flex:1 1 100%;"><label>Short summary</label><input id="pSummary"></div>
+    </div>
+    <div class="field-row">
+      <div class="field" style="flex:1 1 100%;"><label>Full description (project page)</label><textarea id="pDescription"></textarea></div>
+    </div>
+    <div class="actions-bar">
+      <button class="btn primary" id="saveProjectBtn">Save project</button>
+      <button class="btn" id="cancelEditBtn" style="display:none;">Cancel edit</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Save / load</h2>
+    <div class="actions-bar">
+      <button class="btn primary" id="downloadBtn">⬇ Download data.js (use this one for the site)</button>
+      <button class="btn" id="downloadJsonBtn">⬇ Download data.json (plain backup copy)</button>
+      <label class="btn" style="display:inline-flex; align-items:center;">
+        ⬆ Import data.js or data.json
+        <input type="file" id="importInput" accept=".js,.json,application/json" style="display:none;">
+      </label>
+    </div>
+  </div>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+let state = null;
+let editingId = null;
+
+function blankState(){
+  return {
+    config: { siteTitle: 'THE STUDIO', ownerName: '', cvUrl: '', tagline: '' },
+    categories: [],
+    projects: []
+  };
+}
+
+function showBanner(message, isError){
+  let banner = document.getElementById('loadBanner');
+  if(!banner){
+    banner = document.createElement('p');
+    banner.id = 'loadBanner';
+    banner.className = 'admin-note';
+    document.querySelector('.admin-wrap').insertBefore(banner, document.querySelector('.panel'));
+  }
+  banner.style.color = isError ? 'var(--brick)' : 'var(--cyan)';
+  banner.textContent = message;
+}
+
+async function boot(){
+  try{
+    state = await loadData();
+  }catch(err){
+    // This is the fix for the "downloads a null file" bug: if data.json can't be
+    // fetched (most commonly because the page was opened directly as a file://
+    // URL instead of through a local server or host), state used to stay null,
+    // and downloading it just wrote the text "null" to disk. Now we always start
+    // from a valid, empty structure instead, so Download always produces real JSON.
+    state = blankState();
+    showBanner('Could not auto-load data.json (' + err.message + '). Starting from a blank template — import an existing data.json below, or serve this folder through a local server / host instead of opening the file directly.', true);
+  }
+  render();
+}
+
+function render(){
+  document.getElementById('cfgTitle').value = state.config.siteTitle;
+  document.getElementById('cfgName').value = state.config.ownerName;
+  document.getElementById('cfgTagline').value = state.config.tagline;
+  document.getElementById('cfgCv').value = state.config.cvUrl;
+
+  // categories list
+  const catList = document.getElementById('categoryList');
+  catList.innerHTML = '';
+  state.categories.forEach(cat => {
+    const row = document.createElement('div');
+    row.className = 'project-row';
+    const count = state.projects.filter(p => p.category === cat.id).length;
+    row.innerHTML = `
+      <div style="width:14px;height:14px;border-radius:3px;background:${cat.plaqueColor};flex:0 0 auto;"></div>
+      <div class="info"><strong>${cat.label}</strong><span>${cat.fullLabel} · ${count} project(s)</span></div>
+      <div class="row-actions"><button class="btn danger" data-remove-cat="${cat.id}">delete</button></div>
+    `;
+    catList.appendChild(row);
+  });
+
+  // category select in project form
+  const sel = document.getElementById('pCategory');
+  sel.innerHTML = state.categories.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+
+  // projects list
+  const list = document.getElementById('projectList');
+  list.innerHTML = '';
+  if(state.projects.length === 0){
+    list.innerHTML = '<p style="font-family:var(--mono-font);color:var(--cyan)">No projects yet.</p>';
+  }
+  state.projects.forEach(p => {
+    const cat = state.categories.find(c => c.id === p.category);
+    const row = document.createElement('div');
+    row.className = 'project-row';
+    row.innerHTML = `
+      <img src="${p.image}" alt="">
+      <div class="info"><strong>${p.title}</strong><span>${cat ? cat.label : p.category} · ${p.year}${p.pdf ? ' · has PDF' : ''}</span></div>
+      <div class="row-actions">
+        <button class="btn" data-edit="${p.id}">edit</button>
+        <button class="btn danger" data-remove="${p.id}">delete</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => startEdit(btn.getAttribute('data-edit')));
+  });
+  list.querySelectorAll('[data-remove]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.projects = state.projects.filter(p => p.id !== btn.getAttribute('data-remove'));
+      render();
+    });
+  });
+  catList.querySelectorAll('[data-remove-cat]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-remove-cat');
+      const inUse = state.projects.some(p => p.category === id);
+      if(inUse && !confirm('Some projects still use this category. Delete it anyway? They will keep an orphaned category id.')) return;
+      state.categories = state.categories.filter(c => c.id !== id);
+      render();
+    });
+  });
+}
+
+function startEdit(id){
+  const p = state.projects.find(x => x.id === id);
+  if(!p) return;
+  editingId = id;
+  document.getElementById('formTitle').textContent = 'Edit project';
+  document.getElementById('pTitle').value = p.title;
+  document.getElementById('pCategory').value = p.category;
+  document.getElementById('pYear').value = p.year;
+  document.getElementById('pTools').value = p.tools.join(', ');
+  document.getElementById('pImage').value = p.image;
+  document.getElementById('pPdf').value = p.pdf || '';
+  document.getElementById('pSummary').value = p.summary;
+  document.getElementById('pDescription').value = p.description;
+  document.getElementById('cancelEditBtn').style.display = 'inline-block';
+  window.scrollTo({top: document.getElementById('formTitle').offsetTop - 20, behavior:'smooth'});
+}
+
+function resetForm(){
+  editingId = null;
+  document.getElementById('formTitle').textContent = 'Add a project';
+  ['pTitle','pYear','pTools','pImage','pPdf','pSummary','pDescription'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('cancelEditBtn').style.display = 'none';
+}
+
+document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
+
+document.getElementById('saveProjectBtn').addEventListener('click', () => {
+  const title = document.getElementById('pTitle').value.trim();
+  if(!title){ alert('Give the project a title.'); return; }
+  const record = {
+    id: editingId || 'proj-' + Date.now(),
+    category: document.getElementById('pCategory').value,
+    title,
+    year: document.getElementById('pYear').value.trim(),
+    tools: document.getElementById('pTools').value.split(',').map(s => s.trim()).filter(Boolean),
+    image: document.getElementById('pImage').value.trim() || 'assets/placeholder-bim.svg',
+    pdf: document.getElementById('pPdf').value.trim(),
+    summary: document.getElementById('pSummary').value.trim(),
+    description: document.getElementById('pDescription').value.trim(),
+    gallery: [document.getElementById('pImage').value.trim() || 'assets/placeholder-bim.svg']
+  };
+  if(editingId){
+    const idx = state.projects.findIndex(p => p.id === editingId);
+    state.projects[idx] = record;
+  } else {
+    state.projects.push(record);
+  }
+  resetForm();
+  render();
+});
+
+document.getElementById('addCatBtn').addEventListener('click', () => {
+  const id = document.getElementById('newCatId').value.trim();
+  const label = document.getElementById('newCatLabel').value.trim();
+  const full = document.getElementById('newCatFull').value.trim();
+  const color = document.getElementById('newCatColor').value;
+  if(!id || !label){ alert('A category needs at least an id and a door label.'); return; }
+  if(state.categories.some(c => c.id === id)){ alert('That category id already exists.'); return; }
+  state.categories.push({id, label, fullLabel: full || label, plaqueColor: color});
+  document.getElementById('newCatId').value = '';
+  document.getElementById('newCatLabel').value = '';
+  document.getElementById('newCatFull').value = '';
+  render();
+});
+
+['cfgTitle','cfgName','cfgTagline','cfgCv'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    state.config.siteTitle = document.getElementById('cfgTitle').value;
+    state.config.ownerName = document.getElementById('cfgName').value;
+    state.config.tagline = document.getElementById('cfgTagline').value;
+    state.config.cvUrl = document.getElementById('cfgCv').value;
+  });
+});
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const js = 'window.SITE_DATA = ' + JSON.stringify(state, null, 2) + ';\n';
+  const blob = new Blob([js], {type: 'text/javascript'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'data.js';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('downloadJsonBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'data.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      let text = reader.result.trim();
+      // Accept either a raw JSON file, or a data.js file (window.SITE_DATA = {...};)
+      if(text.startsWith('window.SITE_DATA')){
+        text = text.replace(/^window\.SITE_DATA\s*=\s*/, '').replace(/;\s*$/, '');
+      }
+      state = JSON.parse(text);
+      const banner = document.getElementById('loadBanner');
+      if(banner) banner.remove();
+      resetForm();
+      render();
+    }catch(err){
+      alert('That file is not valid JSON or data.js: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+});
+
+boot();
+</script>
+</body>
+</html>

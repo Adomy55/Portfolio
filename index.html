@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Studio — Portfolio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <span id="siteTitleTag">THE STUDIO</span>
+  <span class="crumb"><a href="admin.html">admin →</a></span>
+</header>
+
+<main class="scene">
+  <h1 class="scene-title" id="titleText">THE STUDIO</h1>
+  <p class="scene-tagline" id="taglineText">an architecture portfolio you walk through</p>
+  <p class="instructions">
+    Walk with <kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd>. Stand on the stairs and press <kbd>↑</kbd> or <kbd>W</kbd> to go up a floor (<kbd>↓</kbd>/<kbd>S</kbd> to come back down). Doors also open on click.
+  </p>
+
+  <div class="stage" id="stage" tabindex="0" aria-label="Office building, use arrow keys to move">
+    <span class="floor-label" style="top:126px; left:14px;">FLOOR 2 — STUDIO</span>
+    <span class="floor-label" style="top:386px; left:14px;">FLOOR 1 — RECEPTION</span>
+
+    <div class="platform platform-upper"></div>
+    <div class="platform platform-lower"></div>
+
+    <div class="staircase" id="staircase"></div>
+
+    <div class="doors-row upper-doors" id="studioDoors"></div>
+    <div class="doors-row lower-doors" id="receptionDoor"></div>
+
+    <div class="player" id="player"></div>
+  </div>
+
+  <p class="scene-footer" id="loadError" style="display:none;color:var(--brick)"></p>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(async function init(){
+  try{
+    const data = await loadData();
+    document.getElementById('siteTitleTag').textContent = data.config.siteTitle;
+    document.getElementById('titleText').textContent = data.config.siteTitle;
+    document.getElementById('taglineText').textContent = data.config.tagline;
+
+    const studioWrap = document.getElementById('studioDoors');
+    data.categories.forEach(cat => {
+      const unit = document.createElement('button');
+      unit.className = 'door-unit';
+      unit.setAttribute('aria-label', 'Enter ' + cat.fullLabel);
+      unit.innerHTML = `
+        <div class="door" style="border-color:${cat.plaqueColor}"></div>
+        <span class="door-plaque">${cat.label}<span class="sub">${projectCountLabel(data, cat.id)}</span></span>
+      `;
+      unit.addEventListener('click', () => {
+        goThroughDoor(unit, 'hallway.html?cat=' + encodeURIComponent(cat.id));
+      });
+      studioWrap.appendChild(unit);
+    });
+
+    const receptionWrap = document.getElementById('receptionDoor');
+    const cvUnit = document.createElement('a');
+    cvUnit.className = 'door-unit';
+    cvUnit.href = data.config.cvUrl;
+    cvUnit.target = '_blank';
+    cvUnit.rel = 'noopener';
+    cvUnit.innerHTML = `
+      <div class="door" style="border-color:var(--brick)"></div>
+      <span class="door-plaque">CV / RESUME<span class="sub">${data.config.ownerName}</span></span>
+    `;
+    receptionWrap.appendChild(cvUnit);
+
+  }catch(err){
+    const e = document.getElementById('loadError');
+    e.style.display = 'block';
+    e.textContent = 'Could not load data.json — ' + err.message;
+  }
+})();
+
+function projectCountLabel(data, catId){
+  const n = data.projects.filter(p => p.category === catId).length;
+  return n + (n === 1 ? ' project' : ' projects');
+}
+
+/* ---------------- staircase (drawn in JS so it always matches the CSS positions) ---------------- */
+const STAGE_W = 880;
+const STEP_COUNT = 8;
+const STAIR_TOP = 150;
+const STAIR_HEIGHT = 260;
+const STAIR_X = 20;
+const STAIR_WIDTH = 120;
+
+(function drawStairs(){
+  const wrap = document.getElementById('staircase');
+  const stepH = STAIR_HEIGHT / STEP_COUNT;
+  const stepW = STAIR_WIDTH / STEP_COUNT;
+  for(let i = 0; i < STEP_COUNT; i++){
+    const step = document.createElement('div');
+    step.className = 'stair-step';
+    step.style.width = (STAIR_WIDTH - i * stepW) + 'px';
+    step.style.left = (i * stepW / 2) + 'px';
+    step.style.top = (STAIR_HEIGHT - (i + 1) * stepH) + 'px';
+    wrap.appendChild(step);
+  }
+})();
+
+/* ---------------- optional custom art: assets/stairs.png and assets/desk.png ----------------
+   These only appear if you actually add the files — nothing breaks if they're missing. */
+(function loadOptionalArt(){
+  // Stairs: if assets/stairs.png loads, lay it over the staircase box and hide the
+  // placeholder steps drawn above. If it 404s, the placeholder steps stay visible.
+  const stairsProbe = new Image();
+  stairsProbe.onload = () => {
+    const wrap = document.getElementById('staircase');
+    wrap.querySelectorAll('.stair-step').forEach(s => s.style.display = 'none');
+    const img = document.createElement('img');
+    img.src = 'assets/stairs.png';
+    img.className = 'stairs-img-overlay';
+    img.alt = '';
+    wrap.appendChild(img);
+  };
+  stairsProbe.src = 'assets/stairs.png';
+
+  // Desk: sits in front of the CV door on the reception floor. Purely decorative
+  // (pointer-events: none) so the door underneath is still clickable.
+  const deskProbe = new Image();
+  deskProbe.onload = () => {
+    const img = document.createElement('img');
+    img.src = 'assets/desk.png';
+    img.className = 'desk-img-overlay';
+    img.alt = '';
+    // Positioned against the reception door's box (doors-row.lower-doors: top 300, right 60,
+    // door width 70) — centered on the door, feet resting on the floor line at top:410.
+    img.style.width = '110px';
+    img.style.height = '64px';
+    img.style.right = '35px';
+    img.style.top = '346px';
+    document.getElementById('stage').appendChild(img);
+  };
+  deskProbe.src = 'assets/desk.png';
+})();
+
+/* ---------------- movable character ---------------- */
+(function playerControls(){
+  const stage = document.getElementById('stage');
+  const player = document.getElementById('player');
+
+  const FLOOR1_Y = 376;  // resting top position on the lower platform (feet touch platform top at 410)
+  const FLOOR2_Y = 116;  // resting top position on the upper platform (feet touch platform top at 150)
+  const SPEED = 4;
+  const STAGE_WIDTH = stage.clientWidth || STAGE_W;
+
+  let x = 60;
+  let floor = 1; // 1 = lower/reception, 2 = upper/studio
+  let facing = 1;
+  const keys = {};
+
+  function withinStairsX(px){
+    return px + 22 > STAIR_X && px < STAIR_X + STAIR_WIDTH;
+  }
+
+  function render(){
+    player.style.left = x + 'px';
+    player.style.top = (floor === 1 ? FLOOR1_Y : FLOOR2_Y) + 'px';
+    player.style.transform = facing < 0 ? 'scaleX(-1)' : 'scaleX(1)';
+  }
+
+  function tick(){
+    const left = keys['arrowleft'] || keys['a'];
+    const right = keys['arrowright'] || keys['d'];
+    const up = keys['arrowup'] || keys['w'];
+    const down = keys['arrowdown'] || keys['s'];
+
+    if(left){ x -= SPEED; facing = -1; }
+    if(right){ x += SPEED; facing = 1; }
+    x = Math.max(0, Math.min(STAGE_WIDTH - 22, x));
+
+    if(withinStairsX(x)){
+      if(up && floor === 1) floor = 2;
+      if(down && floor === 2) floor = 1;
+    }
+
+    render();
+    requestAnimationFrame(tick);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    keys[e.key.toLowerCase()] = true;
+    if(['arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase())) e.preventDefault();
+  });
+  window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+  stage.addEventListener('click', () => stage.focus());
+  render();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project — Portfolio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <span class="crumb" id="backCrumb"><a href="index.html">← office</a></span>
+  <span class="crumb"><a href="admin.html">admin →</a></span>
+</header>
+
+<main class="project-page" id="content">
+  <p style="font-family:var(--mono-font); color:var(--cyan)">Loading…</p>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(async function init(){
+  const id = qs('id');
+  const content = document.getElementById('content');
+  try{
+    const data = await loadData();
+    const p = projectById(data, id);
+    if(!p){
+      content.innerHTML = '<p style="font-family:var(--mono-font);color:var(--brick)">Project not found. <a href="index.html" style="color:var(--amber)">Back to the office</a>.</p>';
+      return;
+    }
+    const cat = categoryById(data, p.category);
+    document.getElementById('backCrumb').innerHTML =
+      '<a href="hallway.html?cat=' + encodeURIComponent(p.category) + '">← ' + (cat ? cat.label.toLowerCase() : 'hallway') + '</a>';
+    document.title = p.title + ' — Portfolio';
+
+    const gallery = (p.gallery && p.gallery.length ? p.gallery : [p.image]);
+    content.innerHTML = `
+      <img class="project-hero" src="${gallery[0]}" alt="${p.title}">
+      <div class="project-meta">
+        <span class="tag">${cat ? cat.fullLabel : p.category}</span>
+        <span class="tag">${p.year}</span>
+        ${p.tools.map(t => '<span class="tag">' + t + '</span>').join('')}
+      </div>
+      <h1 class="project-title">${p.title}</h1>
+      <p class="project-desc">${p.description}</p>
+      ${p.pdf ? `
+      <div class="pdf-door-row">
+        <a class="door-unit" href="${p.pdf}" target="_blank" rel="noopener" aria-label="Open full PDF for ${p.title}">
+          <div class="door" style="border-color:var(--cyan)"></div>
+          <span class="door-plaque">FULL PDF<span class="sub">opens in a new tab</span></span>
+        </a>
+      </div>` : ''}
+    `;
+  }catch(err){
+    content.innerHTML = '<p style="font-family:var(--mono-font);color:var(--brick)">Could not load data.json — ' + err.message + '</p>';
+  }
+})();
+</script>
+</body>
+</html>
